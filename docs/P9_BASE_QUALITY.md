@@ -1,7 +1,7 @@
 # P9 base quality
 
-Status: **NOT RUN**. Protocol `p9-2026-10-02-1` is locked. No base IQ2
-generation has been scored under it.
+Status: **NOT RUN**. Protocol `p9-2026-10-05-1` is the current lock. No base
+IQ2 generation has been scored under it or under `p9-2026-10-02-1`.
 
 Reference kind: `UNAVAILABLE`. See [P9_EVAL_PROTOCOL.md](P9_EVAL_PROTOCOL.md).
 There is no `REFERENCE_BF16` and no `REFERENCE_PROXY`. The published model is

@@ -30,6 +30,7 @@ try:
         _utc_now,
         _wait_health,
         assert_model_fits_host_ram,
+        desktop_safe_env,
         desktop_safe_launch_args,
         windows_launch_flags,
     )
@@ -46,6 +47,7 @@ except ModuleNotFoundError:
         _utc_now,
         _wait_health,
         assert_model_fits_host_ram,
+        desktop_safe_env,
         desktop_safe_launch_args,
         windows_launch_flags,
     )
@@ -327,7 +329,7 @@ def _server_command(args: argparse.Namespace, context: int, port: int) -> list[s
         "--parallel",
         "1",
         "--reasoning",
-        "off",
+        str(getattr(args, "reasoning", "off")),
         "--ctx-checkpoints",
         "0",
         "--cache-ram",
@@ -474,6 +476,7 @@ def _run_series(
             stdout=server_log,
             stderr=subprocess.STDOUT,
             text=True,
+            env=desktop_safe_env(),
             creationflags=windows_launch_flags(),
         )
         _wait_health(port, process, min(args.timeout, 600))

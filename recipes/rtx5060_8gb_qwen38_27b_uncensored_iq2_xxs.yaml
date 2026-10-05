@@ -14,9 +14,16 @@ quant:
 runtime:
   build: b10982
   commit: fc82583e6
-  cache_type_k: q4_0
-  cache_type_v: q4_0
-  protocol: p9-2026-10-02-1
+  protocol: p9-2026-10-05-1
+  reasoning: on
+  short_context:
+    context: 2560
+    cache_type_k: q8_0
+    cache_type_v: q8_0
+  occupied_8k:
+    context: 8448
+    cache_type_k: q4_0
+    cache_type_v: q4_0
 measurement:
   full_gpu: null
   occupied_8k: null

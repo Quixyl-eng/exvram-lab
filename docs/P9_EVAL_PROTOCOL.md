@@ -1,6 +1,6 @@
 # P9 eval protocol
 
-Protocol id: `p9-2026-10-02-1`
+Protocol id: `p9-2026-10-05-1`
 
 Status: **locked before any P9 model measurement**. The numbers below are the
 acceptance rules. They were chosen before looking at candidate scores. A later
@@ -8,8 +8,10 @@ change needs a changelog entry in this file and must not be applied silently
 to a run that already started.
 
 The machine-readable copy is `src/exvram/p9_eval.py`. The runner is
-`benchmark/run_p9_quality.py`. It talks to the same llama-server recipe as
-P6. lm-evaluation-harness was not added: it would pull a separate model stack,
+`benchmark/run_p9_quality.py`. It uses the same llama-server binary as P6,
+with the host-responsive launch flags, and it does not reuse the P6
+`--reasoning off` + q4_0-everywhere recipe. lm-evaluation-harness was not
+added: it would pull a separate model stack,
 and the runtime under test is llama.cpp. Task text and licenses come from the
 upstream datasets. Where this protocol is narrower than the official harness,
 the task name says so.
@@ -20,8 +22,8 @@ the task name says so.
 |---|---|
 | GPU | NVIDIA RTX 5060, 8151 MiB, CC 12.0 |
 | Server | llama.cpp `llama-server`, build b10982, commit `fc82583e6` |
-| Flags | `--fit off`, `--gpu-layers 999`, CUDA0, flash-attn on, q4_0 KV, `--ctx-checkpoints 0`, `--cache-ram 0`, `--reasoning off`, batch 32, ubatch 1, verbosity 4 |
-| Context | 8448 for every category, so an 8192-token prompt still fits |
+| Flags | `--fit off`, `--gpu-layers 999`, CUDA0, flash-attn on, `--poll 0`, `--ctx-checkpoints 0`, `--cache-ram 0`, `--reasoning on`, batch 32, ubatch 1, verbosity 4 |
+| Context | 2560 and q8_0 KV for prompts up to 2048 tokens. 8448 and q4_0 KV for 4096 and 8192 needles. q8_0 or f16 at 8192 paged this host and is refused unless `--allow-paging-kv` is set |
 | Temperature | 0.0 |
 | Seed | 42 |
 | System prompt | none added. Chat categories send one user message. The GGUF chat template is not edited |
@@ -66,8 +68,9 @@ limited to `keywords:forbidden_words`, `startend:end_checker`,
 `punctuation:no_comma`, `startend:quotation`, and
 `change_case:english_lowercase`. The case check does not detect language.
 
-`n_predict` is 64, 256, 512, 16, 256, and 32 for reasoning, math, coding,
-factual, instruction, and long context.
+`n_predict` is 512, 256, 512, 16, 256, and 32 for reasoning, math, coding,
+factual, instruction, and long context. Reasoning is 512 because the server
+now leaves Qwen thinking on; 64 tokens ended the reply inside the trace.
 
 ## Quality threshold
 
@@ -116,3 +119,10 @@ or `P9_OVERREFUSAL_FAIL`. Anything incomplete is `P9_INCONCLUSIVE`.
 ## Changelog
 
 - 2026-10-02: initial lock `p9-2026-10-02-1`, before any P9 generation.
+- 2026-10-05: `p9-2026-10-05-1`, still before any P9 generation. The previous
+  lock forced `--reasoning off` and q4_0 KV for every category. That is the
+  run that pegged the desktop (`--poll` stayed at llama.cpp's default of 50)
+  and made Qwen answer without its thinking trace on a 4-bit cache. Short
+  prompts now use q8_0 KV, reasoning stays on, and occupied-8192 stays on
+  q4_0 because q8_0 there left about 22 MiB of RAM. Speed recipes in P5 and
+  P6 are unchanged.

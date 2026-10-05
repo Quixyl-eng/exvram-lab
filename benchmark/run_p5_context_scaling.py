@@ -29,19 +29,46 @@ from exvram.storage import StorageSafetyError, assert_storage_safe
 _BELOW_NORMAL_PRIORITY_CLASS = 0x00004000
 
 
+def desktop_thread_count(cpu_count: int | None = None) -> int:
+    """Leave a real slice of the CPU with the desktop.
+
+    Reserving a flat two threads still saturates a 12–16 thread machine
+    during prefill. Keep at least two cores, and a quarter of the logical
+    CPUs, for the UI.
+    """
+    count = cpu_count if cpu_count is not None else (os.cpu_count() or 1)
+    if count <= 2:
+        return 1
+    reserved = max(2, (count + 3) // 4)
+    return max(1, count - reserved)
+
+
+def desktop_safe_env(base: dict[str, str] | None = None) -> dict[str, str]:
+    """Stop OpenMP from busy-waiting on top of llama.cpp's own poll loop."""
+    env = dict(os.environ if base is None else base)
+    env["OMP_WAIT_POLICY"] = "PASSIVE"
+    env["KMP_BLOCKTIME"] = "0"
+    return env
+
+
 def desktop_safe_launch_args() -> list[str]:
-    """Keep the workstation responsive while a multi-gigabyte GGUF is opened.
+    """Keep the workstation responsive for the whole run, not only model load.
 
     Default mmap fills the Windows standby list and evicts the desktop working
-    set. Direct I/O skips that cache. Low priority and two reserved threads
-    leave the UI a way to run during the load.
+    set. Direct I/O skips that cache. llama.cpp b10982 still busy-polls at
+    level 50 unless this is overridden, which pins cores after ``--prio -1``
+    and is why the machine kept hitching during a run. Polling stays off.
     """
-    threads = max(1, (os.cpu_count() or 1) - 2)
+    threads = desktop_thread_count()
     return [
         "--load-mode",
         "dio",
         "--prio",
         "-1",
+        "--poll",
+        "0",
+        "--poll-batch",
+        "0",
         "--threads",
         str(threads),
         "--threads-batch",
@@ -562,6 +589,7 @@ def _run_one(
             stdout=server_log,
             stderr=subprocess.STDOUT,
             text=True,
+            env=desktop_safe_env(),
             creationflags=windows_launch_flags(),
         )
         monitor = _start_gpu_monitor(gpu_path)

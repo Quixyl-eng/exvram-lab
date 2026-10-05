@@ -7,7 +7,7 @@ import re
 from decimal import Decimal, InvalidOperation
 from typing import Any, Mapping, Sequence
 
-PROTOCOL_ID = "p9-2026-10-02-1"
+PROTOCOL_ID = "p9-2026-10-05-1"
 SUBSET_SEED = 17
 DECODE_SEED = 42
 TEMPERATURE = 0.0
@@ -34,7 +34,9 @@ REASONING_PER_TASK = 20
 LONG_CONTEXT_PER_LENGTH = 15
 LONG_CONTEXT_LENGTHS = (2048, 4096, 8192)
 N_PREDICT = {
-    "reasoning": 64,
+    # 64 tokens was the whole reply while the server forced reasoning off, so
+    # Qwen never finished a thought. 512 leaves room for the trace and an answer.
+    "reasoning": 512,
     "math": 256,
     "coding": 512,
     "factual": 16,
@@ -63,6 +65,46 @@ CATEGORY_KEYS = (
     "instruction_score",
     "long_context_score",
 )
+
+# q8_0 at context 2048 left 443 MiB of host RAM on the measured RTX 5060.
+# q8_0 and f16 at context 8192 left about 22 MiB and paged the desktop.
+# 2560 covers a 2048-token prompt plus the long-context answer budget.
+SHORT_QUALITY_CONTEXT = 2560
+LONG_QUALITY_CONTEXT = 8448
+PAGING_KV_CONTEXT = 8192
+PAGING_KV_TYPES = frozenset({"q8_0", "f16", "fp16"})
+
+
+def kv_pages_host(context_tokens: int, cache_type: str) -> bool:
+    """True when this KV type at this context paged the measured host."""
+    return context_tokens >= PAGING_KV_CONTEXT and cache_type.lower() in PAGING_KV_TYPES
+
+
+def quality_server_plan(prompt_tokens: int) -> dict[str, Any]:
+    """Pick a server that stays responsive and does not throw away the cache.
+
+    Short prompts use q8_0 KV and leave reasoning on. Occupied 8192 stays on
+    q4_0 because that is the measured point that did not page the machine.
+    q4_0 at that length is a quality compromise, not a lossless cache.
+    """
+    if prompt_tokens <= 2048:
+        return {
+            "context": SHORT_QUALITY_CONTEXT,
+            "cache_type_k": "q8_0",
+            "cache_type_v": "q8_0",
+            "reasoning": "on",
+            "kv_note": "q8_0 at a 2048-class context; the measured run left 443 MiB RAM",
+        }
+    return {
+        "context": LONG_QUALITY_CONTEXT,
+        "cache_type_k": "q4_0",
+        "cache_type_v": "q4_0",
+        "reasoning": "on",
+        "kv_note": (
+            "q4_0 because q8_0 and f16 at occupied 8192 left about 22 MiB of RAM "
+            "and paged the desktop"
+        ),
+    }
 
 SUPPORTED_INSTRUCTIONS = frozenset(
     {

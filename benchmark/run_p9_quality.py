@@ -37,9 +37,11 @@ from exvram.p9_eval import (
     gsm8k_correct,
     instruction_correct,
     instruction_eligible,
+    kv_pages_host,
     needle_code,
     needle_correct,
     python_program_passes,
+    quality_server_plan,
     quality_verdict,
     select_ids,
     sha256_text,
@@ -53,6 +55,7 @@ try:
         _pick_port,
         _wait_health,
         assert_model_fits_host_ram,
+        desktop_safe_env,
         windows_launch_flags,
     )
     from run_p6_reproducibility import _gpu_snapshot, _server_command, _stop_server
@@ -62,6 +65,7 @@ except ModuleNotFoundError:
         _pick_port,
         _wait_health,
         assert_model_fits_host_ram,
+        desktop_safe_env,
         windows_launch_flags,
     )
     from benchmark.run_p6_reproducibility import _gpu_snapshot, _server_command, _stop_server
@@ -407,6 +411,47 @@ def _summary(rows: list[dict[str, Any]]) -> dict[str, Any]:
     }
 
 
+def _plan_for_args(args: argparse.Namespace, prompt_tokens: int) -> dict[str, Any]:
+    plan = quality_server_plan(prompt_tokens)
+    if args.context is not None:
+        plan["context"] = args.context
+    if args.cache_type_k is not None:
+        plan["cache_type_k"] = args.cache_type_k
+        plan["cache_type_v"] = args.cache_type_v or args.cache_type_k
+    if args.reasoning is not None:
+        plan["reasoning"] = args.reasoning
+    if kv_pages_host(plan["context"], plan["cache_type_k"]) and not args.allow_paging_kv:
+        raise SystemExit(
+            f"{plan['cache_type_k']} KV at context {plan['context']} left about 22 MiB "
+            "of host RAM on the measured RTX 5060 and paged the desktop. "
+            "Pass --allow-paging-kv only to reproduce that tradeoff cell."
+        )
+    return plan
+
+
+def _open_quality_server(
+    args: argparse.Namespace, plan: dict[str, Any], log_path: Path
+) -> tuple[Any, int, Any, argparse.Namespace]:
+    import subprocess
+
+    namespace = argparse.Namespace(**vars(args))
+    namespace.cache_type_k = plan["cache_type_k"]
+    namespace.cache_type_v = plan["cache_type_v"]
+    namespace.reasoning = plan["reasoning"]
+    namespace.context = plan["context"]
+    log_handle = log_path.open("w", encoding="utf-8")
+    port = _pick_port()
+    process = subprocess.Popen(
+        _server_command(namespace, plan["context"], port),
+        stdout=log_handle,
+        stderr=subprocess.STDOUT,
+        text=True,
+        env=desktop_safe_env(),
+        creationflags=windows_launch_flags(),
+    )
+    return process, port, log_handle, namespace
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--server", required=True)
@@ -419,11 +464,17 @@ def main() -> int:
     parser.add_argument("--work-dir", default="work/p9")
     parser.add_argument("--batch-size", type=int, default=32)
     parser.add_argument("--ubatch-size", type=int, default=1)
-    parser.add_argument("--cache-type-k", default="q4_0")
-    parser.add_argument("--cache-type-v", default="q4_0")
-    parser.add_argument("--context", type=int, default=8448)
+    parser.add_argument("--cache-type-k", default=None)
+    parser.add_argument("--cache-type-v", default=None)
+    parser.add_argument("--context", type=int, default=None)
+    parser.add_argument("--reasoning", default=None)
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--allow-contended-gpu", action="store_true")
+    parser.add_argument(
+        "--allow-paging-kv",
+        action="store_true",
+        help="allow q8_0 or f16 KV at context >= 8192, which paged the measured host",
+    )
     args = parser.parse_args()
 
     model = Path(args.model)
@@ -442,7 +493,18 @@ def main() -> int:
     if counts != expected:
         raise SystemExit(f"protocol sample counts {counts} != {expected}")
     if args.dry_run:
-        print(json.dumps({"protocol": PROTOCOL_ID, "counts": counts, "long_context": "runtime"}))
+        print(
+            json.dumps(
+                {
+                    "protocol": PROTOCOL_ID,
+                    "counts": counts,
+                    "plans": {
+                        "short": quality_server_plan(2048),
+                        "long": quality_server_plan(8192),
+                    },
+                }
+            )
+        )
         return 0
 
     output = Path(args.output)
@@ -455,51 +517,59 @@ def main() -> int:
     if not args.allow_contended_gpu and gpu.get("available") and background_mib > 1024:
         raise SystemExit(f"background VRAM {gpu.get('memory_used_mib')} MiB is above 1024")
 
-    log_path = work / "p9_server.log"
-    log_handle = log_path.open("w", encoding="utf-8")
-    port = _pick_port()
-    command = _server_command(args, args.context, port)
-    import subprocess
-
-    process = subprocess.Popen(
-        command,
-        stdout=log_handle,
-        stderr=subprocess.STDOUT,
-        text=True,
-        creationflags=windows_launch_flags(),
-    )
     measured: list[dict[str, Any]] = []
-    try:
-        _wait_health(port, process, timeout=600)
-        log_text = log_path.read_text(encoding="utf-8", errors="replace")
-        parsed = _parse_log(log_text)
-        full_gpu = parsed.get("offloaded_layers") == "65/65"
-        pending = [item for item in items if item["sample_id"] not in done]
-        for item in pending:
-            _run_item(args, port, item, full_gpu, output, measured)
-        for length in LONG_CONTEXT_LENGTHS:
-            for index in range(LONG_CONTEXT_PER_LENGTH):
-                sample_id = f"needle:{length}:{index}"
-                if sample_id in done:
-                    continue
-                prompt, code, position, count = _needle_prompt(port, index, length)
-                item = _item(
-                    sample_id=sample_id,
-                    category="long_context",
-                    task="synthetic_needle_v1",
-                    prompt=prompt,
-                    gold=code,
-                    mode="chat",
-                    extra={
-                        "context_target": length,
-                        "needle_position": position,
-                        "prompt_tokens_local": count,
-                    },
-                )
-                _run_item(args, port, item, full_gpu, long_output, measured)
-    finally:
-        _stop_server(process)
-        log_handle.close()
+    automatic = (
+        args.context is None and args.cache_type_k is None and args.cache_type_v is None
+    )
+    if automatic:
+        phases = (
+            ("short", 2048, [item for item in items if item["sample_id"] not in done], (2048,)),
+            ("long", 8192, [], (4096, 8192)),
+        )
+    else:
+        phases = (
+            (
+                "override",
+                args.context or 8448,
+                [item for item in items if item["sample_id"] not in done],
+                LONG_CONTEXT_LENGTHS,
+            ),
+        )
+
+    for phase_name, prompt_tokens, phase_items, needle_lengths in phases:
+        plan = _plan_for_args(args, prompt_tokens)
+        log_path = work / f"p9_server_{phase_name}.log"
+        process, port, log_handle, namespace = _open_quality_server(args, plan, log_path)
+        try:
+            _wait_health(port, process, timeout=600)
+            log_text = log_path.read_text(encoding="utf-8", errors="replace")
+            parsed = _parse_log(log_text)
+            full_gpu = parsed.get("offloaded_layers") == "65/65"
+            for item in phase_items:
+                _run_item(namespace, port, item, full_gpu, output, measured)
+            for length in needle_lengths:
+                for index in range(LONG_CONTEXT_PER_LENGTH):
+                    sample_id = f"needle:{length}:{index}"
+                    if sample_id in done:
+                        continue
+                    prompt, code, position, count = _needle_prompt(port, index, length)
+                    item = _item(
+                        sample_id=sample_id,
+                        category="long_context",
+                        task="synthetic_needle_v1",
+                        prompt=prompt,
+                        gold=code,
+                        mode="chat",
+                        extra={
+                            "context_target": length,
+                            "needle_position": position,
+                            "prompt_tokens_local": count,
+                        },
+                    )
+                    _run_item(namespace, port, item, full_gpu, long_output, measured)
+        finally:
+            _stop_server(process)
+            log_handle.close()
 
     rows = []
     for path in (output, long_output):
@@ -544,6 +614,12 @@ def _run_item(
             "n_predict": item["n_predict"],
             "system_prompt": None,
             "mode": item["mode"],
+        },
+        "runtime": {
+            "context": getattr(args, "context", None),
+            "cache_type_k": getattr(args, "cache_type_k", None),
+            "cache_type_v": getattr(args, "cache_type_v", None),
+            "reasoning": getattr(args, "reasoning", None),
         },
     }
     try:
