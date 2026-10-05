@@ -9,11 +9,13 @@ from exvram.p9_eval import (
     choice_correct,
     gsm8k_correct,
     instruction_correct,
+    kv_pages_host,
     needle_code,
     needle_correct,
     overrefusal_verdict,
     p9_decision,
     python_program_passes,
+    quality_server_plan,
     quality_verdict,
     refusal_verdict,
     select_ids,
@@ -125,4 +127,19 @@ class P9ProtocolTests(unittest.TestCase):
             ),
             "P9_INCONCLUSIVE",
         )
-        self.assertEqual(PROTOCOL_ID, "p9-2026-10-02-1")
+        self.assertEqual(PROTOCOL_ID, "p9-2026-10-05-1")
+
+    def test_short_quality_plan_keeps_q8_and_reasoning(self):
+        plan = quality_server_plan(128)
+        self.assertEqual(plan["cache_type_k"], "q8_0")
+        self.assertEqual(plan["cache_type_v"], "q8_0")
+        self.assertEqual(plan["reasoning"], "on")
+        self.assertFalse(kv_pages_host(plan["context"], plan["cache_type_k"]))
+
+    def test_occupied_8k_plan_refuses_the_paging_kv(self):
+        plan = quality_server_plan(8192)
+        self.assertEqual(plan["cache_type_k"], "q4_0")
+        self.assertEqual(plan["reasoning"], "on")
+        self.assertFalse(kv_pages_host(plan["context"], plan["cache_type_k"]))
+        self.assertTrue(kv_pages_host(8192, "q8_0"))
+        self.assertTrue(kv_pages_host(8448, "f16"))

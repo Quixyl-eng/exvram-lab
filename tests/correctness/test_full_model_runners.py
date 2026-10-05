@@ -1,5 +1,4 @@
 import importlib.util
-import os
 import sys
 import unittest
 from pathlib import Path
@@ -51,11 +50,21 @@ class FullModelRunnerTests(unittest.TestCase):
             cache_type_v="q4_0",
         )
         command = runner._server_command(args, 512, 9)
+        scaling = _load_benchmark("run_p5_context_scaling")
         self.assertEqual(command[command.index("--load-mode") + 1], "dio")
         self.assertEqual(command[command.index("--prio") + 1], "-1")
-        threads = max(1, (os.cpu_count() or 1) - 2)
+        self.assertEqual(command[command.index("--poll") + 1], "0")
+        self.assertEqual(command[command.index("--poll-batch") + 1], "0")
+        self.assertEqual(command[command.index("--reasoning") + 1], "off")
+        threads = scaling.desktop_thread_count()
         self.assertEqual(command[command.index("--threads") + 1], str(threads))
         self.assertEqual(command[command.index("--threads-batch") + 1], str(threads))
+        self.assertEqual(scaling.desktop_thread_count(8), 6)
+        self.assertEqual(scaling.desktop_thread_count(16), 12)
+        self.assertEqual(scaling.desktop_thread_count(4), 2)
+        env = scaling.desktop_safe_env({"PATH": "/usr/bin"})
+        self.assertEqual(env["OMP_WAIT_POLICY"], "PASSIVE")
+        self.assertEqual(env["KMP_BLOCKTIME"], "0")
 
     def test_gguf_larger_than_physical_ram_is_refused(self):
         runner = _load_benchmark("run_p5_context_scaling")

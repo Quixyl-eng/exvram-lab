@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import re
 import subprocess
 import sys
@@ -15,9 +14,17 @@ from typing import Any
 from exvram.storage import StorageSafetyError, assert_storage_safe
 
 try:
-    from run_p5_context_scaling import assert_model_fits_host_ram
+    from run_p5_context_scaling import (
+        assert_model_fits_host_ram,
+        desktop_safe_env,
+        desktop_safe_launch_args,
+    )
 except ModuleNotFoundError:
-    from benchmark.run_p5_context_scaling import assert_model_fits_host_ram
+    from benchmark.run_p5_context_scaling import (
+        assert_model_fits_host_ram,
+        desktop_safe_env,
+        desktop_safe_launch_args,
+    )
 
 _PROMPT_RE = re.compile(r"prompt eval time\s*=\s*([0-9.]+) ms /\s*([0-9]+) tokens")
 _DECODE_RE = re.compile(r"eval time\s*=\s*([0-9.]+) ms /\s*([0-9]+) runs")
@@ -124,14 +131,7 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         str(args.context),
         "--gpu-layers",
         args.gpu_layers,
-        "--load-mode",
-        "dio",
-        "--prio",
-        "-1",
-        "--threads",
-        str(max(1, (os.cpu_count() or 1) - 2)),
-        "--threads-batch",
-        str(max(1, (os.cpu_count() or 1) - 2)),
+        *desktop_safe_launch_args(),
         "--cache-type-k",
         args.cache_type_k,
         "--cache-type-v",
@@ -189,6 +189,7 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
             errors="replace",
             timeout=args.timeout,
             check=False,
+            env=desktop_safe_env(),
             creationflags=(
                 getattr(subprocess, "CREATE_NO_WINDOW", 0) | 0x00004000
                 if sys.platform == "win32"
