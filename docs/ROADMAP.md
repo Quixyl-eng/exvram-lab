@@ -72,6 +72,11 @@ No 1-bit GPU or quality result is measured. That track does not block the
 27B / 8 GB release. It resumes only if a layer-level test shows a real
 Pareto gain.
 
+Context compression is a side track. It does not change the q4_0 production
+recipe and it does not block P9. See
+[CONTEXT_COMPRESSION_RESULTS.md](CONTEXT_COMPRESSION_RESULTS.md). No 32k or
+64k fit, quality delta, or latency win is claimed there.
+
 No first-party CUDA or Triton kernel. The speed target was met with
 existing llama.cpp. A kernel waits on a named measured gap, for example
 700 MiB saved at under 5% speed loss, or a 20% `lm_head` speedup. No such
