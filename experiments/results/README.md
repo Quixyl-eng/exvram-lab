@@ -14,5 +14,9 @@ This directory stores small, reviewable JSONL records produced by ExVRAM workflo
 - `synthetic: true` is required for synthetic measurements; synthetic records must not claim
   tok/s for model inference.
 
+`context_compression_plan.json` is the CPU planner output for the side track in
+[docs/CONTEXT_COMPRESSION_RESULTS.md](../../docs/CONTEXT_COMPRESSION_RESULTS.md).
+Its speed fields are null and its quality status is `NOT_VERIFIED`. It is not a GPU sample.
+
 Outside contributors publish a new run with [docs/CONTRIBUTOR_RESULT.md](../../docs/CONTRIBUTOR_RESULT.md). The blank example in `contributor_result.example.json` is not a measurement. The schemas in `schemas/` define the stable record contracts. P2 provenance and queue state live
 in `experiments/manifests/` and the research plan, not in model files.

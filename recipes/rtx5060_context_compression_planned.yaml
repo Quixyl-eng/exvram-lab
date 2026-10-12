@@ -1,0 +1,35 @@
+name: rtx5060_context_compression_planned
+stage: context-compression
+status: planned_not_run
+blocks_p9: false
+production_baseline: recipes/rtx5060_8gb_qwen38_27b_8k.yaml
+production_baseline_modified: false
+model:
+  id: Qwen3.8-27B
+  quant: UD-IQ2_XXS
+  weights_modified: false
+  fine_tune: false
+compression:
+  enabled_by_default: false
+  families:
+    A: llama.cpp KV type only, q4_0 q8_0 f16
+    B: not selected
+    C: not selected
+  quality_status: NOT_VERIFIED
+contexts_configured: [8192, 16384, 32768, 65536]
+occupied_context_measured: 8192
+runtime:
+  build: b10982
+  commit: fc82583e6
+  note: >
+    Do not replace this pin with a TurboQuant or Hadamard build until that
+    binary is shown to contain the feature and to load this GGUF on SM120.
+measurement:
+  quality_gate: NOT_VERIFIED
+  prefill_tokens_per_second: null
+  ttft_seconds: null
+  decode_tokens_per_second: null
+  max_context_verified: 8192
+  command: >
+    python -m exvram plan-context-compression --task document --context 8192
+    --mode INTERACTIVE

@@ -9,6 +9,7 @@ from typing import Any
 from .adapters import all_adapters, get_adapter
 from .adapters.ollama import run_ollama
 from .config import load_experiment
+from .context_compression import comparison_matrix, select_representation
 from .errors import ExVRAMError
 from .hardware import detect_hardware
 from .heretic import plan_heretic
@@ -165,6 +166,20 @@ def _parser() -> argparse.ArgumentParser:
         help="score this checkpoint against --model; do not abliterate",
     )
     heretic.add_argument("--executable", default="heretic")
+
+    compression = commands.add_parser(
+        "plan-context-compression",
+        help="plan a switchable KV check without running a model or claiming quality",
+    )
+    compression.add_argument("--task", default="document", choices=("code", "document", "dialogue"))
+    compression.add_argument("--context", type=int, default=8192)
+    compression.add_argument("--mode", default="INTERACTIVE", choices=("INTERACTIVE", "BENCHMARK"))
+    compression.add_argument(
+        "--enable",
+        action="store_true",
+        help="consider a higher-fidelity KV type; omit to keep the q4_0 baseline",
+    )
+    compression.add_argument("--output", help="write the plan JSON to this path")
     return parser
 
 
@@ -415,6 +430,21 @@ def _run_ollama(args: argparse.Namespace) -> int:
     return 0 if record["status"] == "PASS" else 2
 
 
+def _plan_context_compression(args: argparse.Namespace) -> int:
+    plan = select_representation(
+        task=args.task,
+        context_tokens=args.context,
+        compression_enabled=args.enable,
+        mode=args.mode,
+    )
+    plan["matrix"] = comparison_matrix()
+    plan["production_baseline_modified"] = False
+    if args.output:
+        plan["saved_to"] = write_json_payload(plan, args.output)
+    _dump(plan)
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     args = _parser().parse_args(argv)
     try:
@@ -448,6 +478,8 @@ def main(argv: list[str] | None = None) -> int:
             return _score_refusal(args)
         if args.command == "plan-heretic":
             return _plan_heretic(args)
+        if args.command == "plan-context-compression":
+            return _plan_context_compression(args)
         raise ExVRAMError(f"unknown command: {args.command}")
     except (ExVRAMError, ValueError, OSError) as exc:
         print(json.dumps({"error": str(exc), "type": type(exc).__name__}), file=sys.stderr)
