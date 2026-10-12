@@ -79,7 +79,7 @@ Marlin and FlashInfer are named in the README ecosystem list and do not have ada
 
 ## Propose a new research method
 
-Open an issue before writing code. The proposal needs:
+Open an issue before writing code. Ready-to-file tasks are listed in [docs/CONTRIBUTOR_ISSUES.md](docs/CONTRIBUTOR_ISSUES.md). The proposal needs:
 
 - the existing open-source method it is compared with
 - the metric (quality, VRAM, decode, prefill, refusal) and the hardware
