@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "example_only": true,
+  "evidence_class": "ESTIMATED",
+  "synthetic": false,
+  "hardware": {
+    "gpu": null,
+    "vram_mib": null,
+    "cpu": null,
+    "ram_mib": null,
+    "os": null
+  },
+  "model": {
+    "id": null,
+    "sha256": null,
+    "quantization": null
+  },
+  "runtime": {
+    "backend": null,
+    "backend_commit": null,
+    "context_tokens": null,
+    "kv": null,
+    "command": null
+  },
+  "metrics": {
+    "decode_tokens_per_second": null,
+    "prefill_tokens_per_second": null,
+    "peak_vram_mib": null
+  },
+  "quality": {
+    "status": "NOT_RUN",
+    "protocol": null,
+    "summary": "Blank contributor template. Not a measurement and not a synthetic tok/s claim."
+  },
+  "notes": [
+    "Copy this file before filling it.",
+    "ESTIMATED records keep decode, prefill, and peak VRAM null.",
+    "MEASURED records require model.sha256 and runtime.command."
+  ]
+}

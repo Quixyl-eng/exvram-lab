@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://exvram.dev/schemas/contributor_result.schema.json",
+  "title": "ExVRAM contributor experiment result",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "example_only",
+    "evidence_class",
+    "synthetic",
+    "hardware",
+    "model",
+    "runtime",
+    "metrics",
+    "quality",
+    "notes"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "example_only": {"type": "boolean"},
+    "evidence_class": {"enum": ["MEASURED", "ESTIMATED"]},
+    "synthetic": {"type": "boolean"},
+    "hardware": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["gpu", "vram_mib", "cpu", "ram_mib", "os"],
+      "properties": {
+        "gpu": {"type": ["string", "null"]},
+        "vram_mib": {"type": ["number", "null"]},
+        "cpu": {"type": ["string", "null"]},
+        "ram_mib": {"type": ["number", "null"]},
+        "os": {"type": ["string", "null"]}
+      }
+    },
+    "model": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "sha256", "quantization"],
+      "properties": {
+        "id": {"type": ["string", "null"]},
+        "sha256": {"type": ["string", "null"]},
+        "quantization": {"type": ["string", "null"]}
+      }
+    },
+    "runtime": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["backend", "backend_commit", "context_tokens", "kv", "command"],
+      "properties": {
+        "backend": {"type": ["string", "null"]},
+        "backend_commit": {"type": ["string", "null"]},
+        "context_tokens": {"type": ["integer", "null"]},
+        "kv": {"type": ["string", "null"]},
+        "command": {"type": ["string", "null"]}
+      }
+    },
+    "metrics": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["decode_tokens_per_second", "prefill_tokens_per_second", "peak_vram_mib"],
+      "properties": {
+        "decode_tokens_per_second": {"type": ["number", "null"]},
+        "prefill_tokens_per_second": {"type": ["number", "null"]},
+        "peak_vram_mib": {"type": ["number", "null"]}
+      }
+    },
+    "quality": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "protocol", "summary"],
+      "properties": {
+        "status": {"enum": ["NOT_RUN", "PASS", "FAIL", "INCONCLUSIVE"]},
+        "protocol": {"type": ["string", "null"]},
+        "summary": {"type": ["string", "null"]}
+      }
+    },
+    "notes": {"type": "array", "items": {"type": "string"}}
+  }
+}

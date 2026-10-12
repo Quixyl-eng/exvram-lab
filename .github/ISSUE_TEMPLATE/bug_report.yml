@@ -1,0 +1,25 @@
+name: Bug report
+description: A command or test failed
+title: "bug: "
+labels: []
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What happened
+      description: Include the command and the error. Leave out tokens and home-directory paths.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected result
+    validations:
+      required: true
+  - type: input
+    id: equipment
+    attributes:
+      label: Equipment
+      description: OS, Python, and GPU if the failure needs one. Write "CPU only" when it does not.
+    validations:
+      required: true

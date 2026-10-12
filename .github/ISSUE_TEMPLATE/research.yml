@@ -1,0 +1,42 @@
+name: Research proposal
+description: Propose a method, a quality run, or a comparison
+title: "research: "
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What is unmeasured, and which existing document says so?
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected result
+    validations:
+      required: true
+  - type: textarea
+    id: done
+    attributes:
+      label: Done when
+    validations:
+      required: true
+  - type: input
+    id: files
+    attributes:
+      label: Files
+    validations:
+      required: true
+  - type: textarea
+    id: tests
+    attributes:
+      label: How to test
+    validations:
+      required: true
+  - type: input
+    id: equipment
+    attributes:
+      label: Equipment
+      description: GPU, VRAM, RAM, or "CPU only".
+    validations:
+      required: true

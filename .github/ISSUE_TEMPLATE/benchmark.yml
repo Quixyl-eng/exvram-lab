@@ -1,0 +1,29 @@
+name: Benchmark reproduction
+description: Reproduce a published recipe on your hardware
+title: "benchmark: "
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Which published result are you reproducing?
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected result
+      description: A MEASURED contributor record. Do not reuse another GPU's tok/s.
+    validations:
+      required: true
+  - type: input
+    id: equipment
+    attributes:
+      label: Equipment
+    validations:
+      required: true
+  - type: textarea
+    id: command
+    attributes:
+      label: Command
+    validations:
+      required: true

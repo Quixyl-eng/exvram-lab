@@ -152,6 +152,23 @@ QTIP is a GPLv3 research reference only. No GPL code is copied into this Apache-
 - `tests/` — CPU unit tests. GPU-only behavior skips or reports unavailable when CUDA is absent.
 - `docs/` — architecture, GPU environment, measured P1/P2 results, and the research plan.
 
+## First 10 minutes, no GPU
+
+An NVIDIA GPU is not required to read the lab, run the tests, or check the result workflow. This path does not download weights and does not report tokens/second.
+
+```bash
+git clone https://github.com/ExVRAM/exvram-lab.git
+cd exvram-lab
+python -m venv .venv
+source .venv/bin/activate
+python -m pip install -e ".[dev]"
+exvram validate-environment
+exvram run-synthetic-microbenchmark --output results/synthetic.json
+python -m unittest discover -s tests -q
+```
+
+On Windows, create the virtual environment with `py -3 -m venv .venv` and call `.\.venv\Scripts\exvram`. `results/synthetic.json` is a CPU checksum workload with `synthetic: true`. It is not a model measurement. The longer command list is in [Quick start](#quick-start). How to run a real benchmark, add a backend, and publish a result is in [CONTRIBUTING.md](CONTRIBUTING.md).
+
 ## Quick start
 
 Python 3.10 or newer is required. The base package has no runtime dependency on Torch or a GPU. On Windows, use a virtual environment so GPU packages stay off the global interpreter.
@@ -222,6 +239,6 @@ P8 1-bit research stays on `experiment/p8-low-bit` and does not gate P9. No firs
 
 ## License
 
-Original ExVRAM Lab code is Apache License 2.0. See [LICENSE](LICENSE).
+Original ExVRAM Lab code is Apache License 2.0. See [LICENSE](LICENSE). Contributions follow [CONTRIBUTING.md](CONTRIBUTING.md) and [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md). Security reports use [SECURITY.md](SECURITY.md).
 
 Third-party projects keep their own licenses. See [THIRD_PARTY.md](THIRD_PARTY.md).

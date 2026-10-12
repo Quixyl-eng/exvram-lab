@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Contributing guide
+    url: https://github.com/ExVRAM/exvram-lab/blob/main/CONTRIBUTING.md
+    about: CPU setup, GPU benchmarks, and how to publish a result
+  - name: Security report
+    url: https://github.com/ExVRAM/exvram-lab/security/advisories/new
+    about: Private report for secrets or unsafe file handling
